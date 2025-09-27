@@ -2,10 +2,11 @@ import pyautogui, time, datetime
 
 # Example absolute coordinates (replace with your own)
 FIRST = (283, 286)
-LAST  = (410, 220)
-ID    = (190, 200)
-ROOM  = (230, 600)
-DESC  = (620, 340)
+LAST  = (430, 286)
+ID    = (297, 238)
+ROOM  = (256, 582)
+DESC  = (100, 420)
+CHROME = (961, 1056)
 
 def copy_field(pos, triple=False):
     pyautogui.moveTo(*pos, duration=0.25)
@@ -27,9 +28,9 @@ HWU ID: {sid.strip()}
 Granted access by: RLW Tim
 Granted access at: {datetime.datetime.now():%Y-%m-%d %H:%M}"""
 
+pyautogui.moveTo(*CHROME, duration=0.3)
+pyautogui.click()
 pyautogui.moveTo(*DESC, duration=0.3)
 pyautogui.click()
-time.sleep(0.1)
-pyautogui.hotkey('ctrl','a')
 time.sleep(0.05)
 pyautogui.write(template, interval=0.003)
