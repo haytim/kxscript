@@ -22,11 +22,13 @@ last  = copy_field(LAST)
 sid   = copy_field(ID)
 room  = copy_field(ROOM)
 
+current_time = datetime.datetime.now().strftime("%H:%M")
+
 template = f"""Student's full name: {first.strip()} {last.strip()}
 Room: {room.strip()}
 HWU ID: {sid.strip()}
 Granted access by: RLW Tim
-Granted access at: {datetime.datetime.now():%Y-%m-%d %H:%M}"""
+Granted access at: {current_time}"""
 
 pyautogui.moveTo(*CHROME, duration=0.3)
 pyautogui.click()
