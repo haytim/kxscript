@@ -1,11 +1,19 @@
 import pyautogui
-import pyperclip
 import time
 import datetime
+import pyperclip
 import re
 from pynput import keyboard
+import sys
 
-# Coordinates
+# Failsafe: Move mouse to top-left corner to stop script
+pyautogui.FAILSAFE = True
+
+# Global flag to control script execution
+script_running = False
+exit_program = False
+
+# Example absolute coordinates (replace with your own)
 FIRST = (283, 286)
 LAST = (430, 286)
 ID = (297, 238)
@@ -13,7 +21,6 @@ ROOM = (256, 582)
 CHROME = (961, 1056)
 DESC = (100, 900)
 
-# Building names mapping
 BUILDING_NAMES = {
     'HH': 'Lord Home',
     'RBH': 'Robert Bryson',
@@ -28,10 +35,110 @@ BUILDING_NAMES = {
     'CMW': 'Christina Miller West',
 }
 
-# Global control flags
-running = False
-should_exit = False
-
+def parse_room_info(room_number):
+    """
+    Parse room number and return (building_name, floor_level)
+    """
+    room_number = room_number.strip()
+    
+    # Simple room numbers: HH.312, RBH.213, GBH.210, RSH.232, TH.310, HH.G.12
+    simple_pattern = r'^([A-Z]+)\.([0-9G])\.?(\d*)$'
+    match = re.match(simple_pattern, room_number)
+    if match:
+        building_code = match.group(1)
+        floor_char = match.group(2)
+        
+        if building_code in BUILDING_NAMES:
+            building_name = BUILDING_NAMES[building_code]
+            if floor_char == 'G':
+                floor_level = 'Ground'
+            else:
+                floor_level = floor_char
+            return building_name, floor_level
+    
+    # New room numbers: AM.F21A, MS.F31E, MF.F9B
+    new_pattern = r'^(AM|MS|MF)\.F(\d+)[A-Z]?$'
+    match = re.match(new_pattern, room_number)
+    if match:
+        building_code = match.group(1)
+        flat_num = int(match.group(2))
+        building_name = BUILDING_NAMES[building_code]
+        
+        if building_code == 'MF':
+            if 1 <= flat_num <= 7:
+                floor_level = 'Ground'
+            elif 8 <= flat_num <= 14:
+                floor_level = '1'
+            elif 15 <= flat_num <= 21:
+                floor_level = '2'
+            elif 22 <= flat_num <= 28:
+                floor_level = '3'
+            else:
+                floor_level = '4'
+        elif building_code == 'MS':
+            if 1 <= flat_num <= 8:
+                floor_level = 'Ground'
+            elif 9 <= flat_num <= 16:
+                floor_level = '1'
+            elif 17 <= flat_num <= 24:
+                floor_level = '2'
+            elif 25 <= flat_num <= 32:
+                floor_level = '3'
+            else:
+                floor_level = '4'
+        elif building_code == 'AM':
+            if 1 <= flat_num <= 5:
+                floor_level = 'Ground'
+            elif 6 <= flat_num <= 11:
+                floor_level = '1'
+            elif 12 <= flat_num <= 16:
+                floor_level = '2'
+            elif 17 <= flat_num <= 21:
+                floor_level = '3'
+            else:
+                floor_level = '4'
+        
+        return building_name, floor_level
+    
+    # Old room numbers: LHHA.120, LHHB.312, LHHC.213, LHHD.234
+    old_pattern = r'^LHH[A-D]\.(\d)(\d{2})$'
+    match = re.match(old_pattern, room_number)
+    if match:
+        floor_digit = int(match.group(1))
+        building_name = BUILDING_NAMES['LHH']
+        
+        if floor_digit == 1:
+            floor_level = 'Ground'
+        elif floor_digit == 2:
+            floor_level = '1'
+        elif floor_digit == 3:
+            floor_level = '2'
+        elif floor_digit == 4:
+            floor_level = '3'
+        else:
+            floor_level = str(floor_digit - 1)
+        
+        return building_name, floor_level
+    
+    # Weird room numbers: CMEC2.F8.01, CMWC3.F8.05, CMEB2.F8.01, CMWB3.F8.05, CMWA2.B.01, CMEA2.B.12, CMWCLG.F1.04
+    weird_pattern = r'^(CME|CMW)[A-Z]?([0-9G]|LG)\..*$'
+    match = re.match(weird_pattern, room_number)
+    if match:
+        building_code = match.group(1)
+        floor_char = match.group(2)
+        building_name = BUILDING_NAMES[building_code]
+        
+        if floor_char == 'G' or floor_char == 'LG':
+            floor_level = 'Ground'
+        elif floor_char == 'B':
+            floor_level = 'Basement'
+        else:
+            floor_level = floor_char
+        
+        return building_name, floor_level
+    
+    # Default fallback
+    return "Unknown Building", "Unknown Floor"
 
 def copy_field(pos, triple=False):
     """Copy text from a field at given position"""
@@ -43,230 +150,137 @@ def copy_field(pos, triple=False):
     time.sleep(0.05)
     return pyperclip.paste()
 
-
 def type_at(x, y, text, press_enter=False):
-    """Type text at given coordinates"""
+    """Type text at specific coordinates"""
     pyautogui.moveTo(x, y, duration=0.1)
     pyautogui.click()
     time.sleep(0.05)
     pyautogui.write(text, interval=0.01)
     if press_enter:
         pyautogui.press('enter')
-
-
-def parse_room_number(room_str):
-    """Parse room number and extract building code and floor"""
-    room_str = room_str.strip()
-    
-    # Weird room numbers: CMEC2.F8.01, CMWCLG.F1.04, etc.
-    match = re.match(r'^(CME|CMW)([A-Z])(\d+|LG|G)\.', room_str)
-    if match:
-        base_code = match.group(1)  # CME or CMW
-        block = match.group(2)      # A, B, C, etc. (ignored for building name)
-        floor_code = match.group(3) # Floor indicator
-        
-        # Handle special case CMWCLG (LG = Lower Ground = Ground)
-        if floor_code == 'LG' or floor_code == 'G':
-            floor = 'Ground'
-        else:
-            floor = floor_code
-        
-        building = BUILDING_NAMES.get(base_code, base_code)
-        return building, floor
-    
-    # Old room numbers: LHHA.120, LHHB.312, etc.
-    match = re.match(r'^(LHH)([A-D])\.(\d)(\d{2})$', room_str)
-    if match:
-        base_code = match.group(1)
-        block = match.group(2)  # A, B, C, D (ignored for building name)
-        first_digit = int(match.group(3))
-        
-        # In LHH format: 1xx = Ground, 2xx = Floor 1, 3xx = Floor 2, etc.
-        if first_digit == 1:
-            floor = 'Ground'
-        else:
-            floor = str(first_digit - 1)
-        
-        building = BUILDING_NAMES.get(base_code, base_code)
-        return building, floor
-    
-    # New room numbers: AM.F21A, MS.F31E, MF.F9B
-    match = re.match(r'^(AM|MS|MF)\.F(\d+)', room_str)
-    if match:
-        hall_code = match.group(1)
-        flat_num = int(match.group(2))
-        
-        if hall_code == 'MF':  # Mary Fergusson
-            if 1 <= flat_num <= 7:
-                floor = 'Ground'
-            elif 8 <= flat_num <= 14:
-                floor = '1'
-            elif 15 <= flat_num <= 21:
-                floor = '2'
-            elif 22 <= flat_num <= 28:
-                floor = '3'
-            else:
-                floor = '4'
-        elif hall_code == 'MS':  # Muriel Spark
-            if 1 <= flat_num <= 8:
-                floor = 'Ground'
-            elif 9 <= flat_num <= 16:
-                floor = '1'
-            elif 17 <= flat_num <= 24:
-                floor = '2'
-            elif 25 <= flat_num <= 32:
-                floor = '3'
-            else:
-                floor = '4'
-        elif hall_code == 'AM':  # Anna Macleod
-            if 1 <= flat_num <= 5:
-                floor = 'Ground'
-            elif 6 <= flat_num <= 11:
-                floor = '1'
-            elif 12 <= flat_num <= 16:
-                floor = '2'
-            elif 17 <= flat_num <= 21:
-                floor = '3'
-            else:
-                floor = '4'
-        
-        building = BUILDING_NAMES.get(hall_code, hall_code)
-        return building, floor
-    
-    # Simple room numbers: HH.312, HH.G.12, RBH.213, etc.
-    match = re.match(r'^([A-Z]{2,3})\.([GBg]|\d)', room_str)
-    if match:
-        building_code = match.group(1)
-        floor_code = match.group(2)
-        
-        if floor_code.upper() == 'G' or floor_code.upper() == 'B':
-            floor = 'Ground'
-        else:
-            floor = floor_code
-        
-        building = BUILDING_NAMES.get(building_code, building_code)
-        return building, floor
-    
-    # Fallback
-    return "Unknown Building", "Unknown"
-
+    time.sleep(0.05)
 
 def run_automation():
-    """Main automation routine"""
-    global running
+    """Main automation function"""
+    global script_running
     
+    if script_running:
+        print("Script is already running!")
+        return
+    
+    script_running = True
     print("Starting automation...")
     
-    # Copy fields from source
-    first = copy_field(FIRST)
-    last = copy_field(LAST)
-    sid = copy_field(ID)
-    room = copy_field(ROOM)
-    
-    # Parse room information
-    building, floor = parse_room_number(room)
-    
-    # Generate timestamps
-    current_time = datetime.datetime.now().strftime("%H:%M")
-    current_datetime = datetime.datetime.now().strftime("%d %b %Y %H:%M")
-    
-    # Navigate to Chrome (once)
-    pyautogui.moveTo(*CHROME, duration=0.1)
-    pyautogui.click()
-    time.sleep(0.1)
-    
-    # Sequence of data entry
-    fields = [
-        (110, 466, "Tim Hayes", False),
-        (110, 545, "tlh2000@hw.ac.uk", False),
-        (110, 742, "Edinburgh", True),
-        (110, 835, building, True),
-        (110, 930, floor, True),
-        (110, 1020, room.strip(), False),
-    ]
-    
-    for x, y, text, enter in fields:
-        type_at(x, y, text, press_enter=enter)
-    
-    # Press Page Down after room entry to align pixels
-    pyautogui.press('pagedown')
-    time.sleep(0.1)
-    
-    # Continue with remaining fields
-    type_at(110, 515, "Edinburgh Campus - Residences", press_enter=True)
-    type_at(110, 700, "Access - Supporting Student Residents", press_enter=True)
-    type_at(110, 800, current_datetime, press_enter=False)
-    
-    # Paste the template at DESC location
-    template = f"""Student's full name: {first.strip()} {last.strip()}
+    try:
+        # Copy fields from source
+        first = copy_field(FIRST)
+        last = copy_field(LAST)
+        sid = copy_field(ID)
+        room = copy_field(ROOM)
+        
+        # Parse room information
+        building_name, floor_level = parse_room_info(room)
+        
+        current_time = datetime.datetime.now().strftime("%H:%M")
+        current_datetime = datetime.datetime.now().strftime("%d %b %Y %H:%M")
+        
+        # Navigate to Chrome (once)
+        pyautogui.moveTo(*CHROME, duration=0.1)
+        pyautogui.click()
+        time.sleep(0.1)
+        
+        # Sequence of data entry
+        fields = [
+            (110, 466, "Tim Hayes", False),
+            (110, 545, "tlh2000@hw.ac.uk", False),
+            (110, 742, "Edinburgh", True),
+            (110, 835, building_name, True),
+            (110, 930, floor_level, True),
+            (110, 1020, room.strip(), False),
+        ]
+        
+        for x, y, text, enter in fields:
+            type_at(x, y, text, press_enter=enter)
+        
+        # Press Page Down after room entry
+        pyautogui.press('pagedown')
+        time.sleep(0.1)
+        
+        # Continue with remaining fields
+        remaining_fields = [
+            (110, 515, "Edinburgh Campus - Residences", True),
+            (110, 700, "Access - Supporting Student Residents", True),
+            (110, 800, current_datetime, False),
+        ]
+        
+        for x, y, text, enter in remaining_fields:
+            type_at(x, y, text, press_enter=enter)
+        
+        # Paste the template after the date field
+        template = f"""Student's full name: {first.strip()} {last.strip()}
 Room: {room.strip()}
 HWU ID: {sid.strip()}
 Granted access by: RLW Tim & RLW Ovye
 Granted access at: {current_time}"""
-    
-    pyautogui.moveTo(*DESC, duration=0.1)
-    pyautogui.click()
-    time.sleep(0.05)
-    pyautogui.write(template, interval=0.003)
-    
-    # Press Page Down after description to align pixels
-    pyautogui.press('pagedown')
-    time.sleep(0.1)
-    
-    # Final field
-    type_at(110, 662, "No", press_enter=True)
-    
-    print("Automation completed!")
-    running = False
-
-
-def on_press(key):
-    """Handle keyboard hotkeys"""
-    global running, should_exit
-    
-    try:
-        # Check for Ctrl+Shift+S to start
-        if hasattr(key, 'char'):
-            return
         
-        # Get current pressed keys
-        current_keys = keyboard.Controller().pressed_keys if hasattr(keyboard.Controller(), 'pressed_keys') else set()
+        pyautogui.moveTo(*DESC, duration=0.1)
+        pyautogui.click()
+        time.sleep(0.05)
+        pyautogui.write(template, interval=0.003)
         
-    except AttributeError:
-        pass
-
+        # Press Page Down after description
+        pyautogui.press('pagedown')
+        time.sleep(0.1)
+        
+        # Final field
+        type_at(110, 662, "No", press_enter=True)
+        
+        print("Automation completed successfully!")
+        
+    except Exception as e:
+        print(f"Error during automation: {e}")
+    finally:
+        script_running = False
 
 def on_activate_start():
-    """Hotkey handler for starting automation"""
-    global running
-    if not running:
-        running = True
-        print("Hotkey detected: Starting automation...")
-        run_automation()
-
+    """Called when start hotkey is pressed"""
+    print("\n[START HOTKEY PRESSED]")
+    run_automation()
 
 def on_activate_exit():
-    """Hotkey handler for exiting program"""
-    global should_exit
-    print("Hotkey detected: Exiting program...")
-    should_exit = True
-    return False  # Stop listener
+    """Called when exit hotkey is pressed"""
+    global exit_program
+    print("\n[EXIT HOTKEY PRESSED] - Exiting program...")
+    exit_program = True
+    return False  # Stop the listener
 
-
-if __name__ == "__main__":
+def main():
+    """Main entry point with hotkey listeners"""
+    global exit_program
+    
     print("=" * 60)
-    print("Room Access Automation Script")
+    print("PyAutoGUI Automation Script")
     print("=" * 60)
     print("\nHotkeys:")
-    print("  Ctrl+Shift+S - Start automation")
-    print("  Ctrl+Shift+Q - Exit program")
+    print("  Ctrl + Shift + S : Start automation")
+    print("  Ctrl + Shift + Q : Exit program")
+    print("\nMove mouse to top-left corner for emergency stop!")
+    print("=" * 60)
     print("\nWaiting for hotkey press...\n")
     
-    # Set up global hotkeys
+    # Set up hotkey listeners
     with keyboard.GlobalHotKeys({
             '<ctrl>+<shift>+s': on_activate_start,
-            '<ctrl>+<shift>+q': on_activate_exit
-    }) as listener:
-        listener.join()
+            '<ctrl>+<shift>+q': on_activate_exit}) as h:
+        
+        # Keep the program running until exit_program is True
+        while not exit_program:
+            time.sleep(0.1)
+        
+        h.stop()
     
     print("\nProgram terminated.")
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
