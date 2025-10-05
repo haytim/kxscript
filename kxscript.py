@@ -1,8 +1,8 @@
-import pyautogui, time, datetime
+import pyautogui, time, datetime, re
 import pyperclip
-import re
+from pynput import keyboard
 
-# Coordinate positions
+# Coordinates
 FIRST = (283, 286)
 LAST  = (430, 286)
 ID    = (297, 238)
@@ -40,35 +40,31 @@ def type_at(x, y, text, press_enter=False):
     if press_enter:
         pyautogui.press('enter')
 
-def parse_room(room_code):
-    """Parse room code to extract building name and floor number."""
-    room_code = room_code.strip()
+def parse_room(room_str):
+    """Extract building name and floor from room number"""
+    room_str = room_str.strip()
     
-    # Simple room numbers: HH.312, RBH.213, etc.
-    simple_match = re.match(r'^([A-Z]+)\.([G\d])(\d+)?$', room_code)
+    # Simple rooms: HH.312, RBH.213, GBH.210, RSH.232, TH.310, HH.G.12
+    simple_match = re.match(r'^([A-Z]+)\.([0-9G])\.?(\d+)?', room_str)
     if simple_match:
         building_code = simple_match.group(1)
-        floor_indicator = simple_match.group(2)
+        floor_part = simple_match.group(2)
         
-        building = BUILDING_NAMES.get(building_code, building_code)
-        
-        if floor_indicator == 'G':
-            floor = 'Ground'
-        else:
-            floor = floor_indicator
-        
-        return building, floor
+        if building_code in ['HH', 'RBH', 'TH', 'GBH', 'RSH']:
+            building = BUILDING_NAMES.get(building_code, building_code)
+            if floor_part == 'G':
+                floor = 'Ground'
+            else:
+                floor = floor_part
+            return building, floor
     
-    # New room numbers: AM.F21A, MS.F31E, MF.F9B
-    new_match = re.match(r'^([A-Z]+)\.F(\d+)[A-Z]?$', room_code)
+    # New rooms: AM.F21A, MS.F31E, MF.F9B
+    new_match = re.match(r'^([A-Z]+)\.F(\d+)[A-Z]?', room_str)
     if new_match:
         building_code = new_match.group(1)
         flat_num = int(new_match.group(2))
         
-        building = BUILDING_NAMES.get(building_code, building_code)
-        
-        # Calculate floor based on building and flat number
-        if building_code == 'MF':  # Mary Fergusson
+        if building_code == 'MF':
             if 1 <= flat_num <= 7:
                 floor = 'Ground'
             elif 8 <= flat_num <= 14:
@@ -79,7 +75,9 @@ def parse_room(room_code):
                 floor = '3'
             else:
                 floor = '4'
-        elif building_code == 'MS':  # Muriel Spark
+            return BUILDING_NAMES['MF'], floor
+        
+        elif building_code == 'MS':
             if 1 <= flat_num <= 8:
                 floor = 'Ground'
             elif 9 <= flat_num <= 16:
@@ -90,7 +88,9 @@ def parse_room(room_code):
                 floor = '3'
             else:
                 floor = '4'
-        elif building_code == 'AM':  # Anna Macleod
+            return BUILDING_NAMES['MS'], floor
+        
+        elif building_code == 'AM':
             if 1 <= flat_num <= 5:
                 floor = 'Ground'
             elif 6 <= flat_num <= 11:
@@ -101,90 +101,125 @@ def parse_room(room_code):
                 floor = '3'
             else:
                 floor = '4'
-        else:
-            floor = '?'
-        
-        return building, floor
+            return BUILDING_NAMES['AM'], floor
     
-    # Old room numbers: LHHA.120, LHHB.312, etc.
-    old_match = re.match(r'^(LHH)[A-D]\.(\d)(\d+)$', room_code)
+    # Old rooms: LHHA.120, LHHB.312, LHHC.213, LHHD.234
+    old_match = re.match(r'^LHH[A-D]\.(\d)(\d{2})', room_str)
     if old_match:
-        building_code = old_match.group(1)
-        first_digit = int(old_match.group(2))
-        
-        building = BUILDING_NAMES.get(building_code, building_code)
-        
-        # Floor calculation: 1=Ground, 2=1st, 3=2nd, etc.
+        first_digit = int(old_match.group(1))
         if first_digit == 1:
             floor = 'Ground'
         else:
             floor = str(first_digit - 1)
-        
-        return building, floor
+        return BUILDING_NAMES['LHH'], floor
     
-    # Weird room numbers: CMEC2.F8.01, CMWB3.F8.05, etc.
-    weird_match = re.match(r'^(CME|CMW)[A-C]([G\d])\.', room_code)
+    # Weird rooms: CMEC2.F8.01, CMWC3.F8.05, CMEB2.F8.01, CMWB3.F8.05, CMWA2.B.01, CMEA2.B.12, CMWCLG.F1.04
+    weird_match = re.match(r'^(CME|CMW)[A-D]?([0-9G]|LG)\.', room_str)
     if weird_match:
-        building_code = weird_match.group(1)
-        floor_indicator = weird_match.group(2)
+        base_building = weird_match.group(1)
+        floor_part = weird_match.group(2)
         
-        building = BUILDING_NAMES.get(building_code, building_code)
+        building = BUILDING_NAMES.get(base_building, base_building)
         
-        if floor_indicator == 'G':
+        if floor_part == 'G' or floor_part == 'LG':
             floor = 'Ground'
+        elif floor_part == 'B':
+            floor = 'Ground'  # Assuming B means basement/ground
         else:
-            floor = floor_indicator
+            floor = floor_part
         
         return building, floor
     
-    # If no pattern matches, return as-is
-    return room_code, '?'
+    # Fallback
+    return "Unknown Building", "Unknown"
 
-# Copy fields from KX system
-first = copy_field(FIRST)
-last  = copy_field(LAST)
-sid   = copy_field(ID)
-room  = copy_field(ROOM)
-
-# Parse room info
-building_name, floor_number = parse_room(room)
-
-# Format timestamps
-current_time = datetime.datetime.now().strftime("%H:%M")
-current_datetime = datetime.datetime.now().strftime("%d %b %Y %H:%M")
-
-# Navigate to Chrome (once)
-pyautogui.moveTo(*CHROME, duration=0.1)
-pyautogui.click()
-time.sleep(0.1)
-
-# Sequence of data entry
-fields = [
-    (110, 466, "Tim Hayes", False),
-    (110, 545, "tlh2000@hw.ac.uk", False),
-    (110, 742, "Edinburgh", True),
-    (110, 835, building_name, True),
-    (110, 930, floor_number, True),
-    (110, 1020, room.strip(), False),
-    (110, 515, "Edinburgh Campus - Residences", True),
-    (110, 700, "Access - Supporting Student Residents", True),
-    (110, 800, current_datetime, False),
-]
-
-for x, y, text, enter in fields:
-    type_at(x, y, text, press_enter=enter)
-
-# Paste the template after the date field
-template = f"""Student's full name: {first.strip()} {last.strip()}
+def main_script():
+    print("Script starting in 2 seconds...")
+    time.sleep(2)
+    
+    # Copy fields from source
+    first = copy_field(FIRST)
+    last  = copy_field(LAST)
+    sid   = copy_field(ID)
+    room  = copy_field(ROOM)
+    
+    # Parse room information
+    building, floor = parse_room(room)
+    
+    current_time = datetime.datetime.now().strftime("%H:%M")
+    current_datetime = datetime.datetime.now().strftime("%d %b %Y %H:%M")
+    
+    # Navigate to Chrome (once)
+    pyautogui.moveTo(*CHROME, duration=0.1)
+    pyautogui.click()
+    time.sleep(0.1)
+    
+    # Sequence of data entry
+    fields = [
+        (110, 466, "Tim Hayes", False),
+        (110, 545, "tlh2000@hw.ac.uk", False),
+        (110, 742, "Edinburgh", True),
+        (110, 835, building, True),
+        (110, 930, floor, True),
+        (110, 1020, room.strip(), False),
+    ]
+    
+    for x, y, text, enter in fields:
+        type_at(x, y, text, press_enter=enter)
+    
+    # Page down after room entry
+    pyautogui.press('pagedown')
+    time.sleep(0.1)
+    
+    # Continue with remaining fields
+    remaining_fields = [
+        (110, 515, "Edinburgh Campus - Residences", True),
+        (110, 700, "Access - Supporting Student Residents", True),
+        (110, 800, current_datetime, False),
+    ]
+    
+    for x, y, text, enter in remaining_fields:
+        type_at(x, y, text, press_enter=enter)
+    
+    # Paste the template
+    template = f"""Student's full name: {first.strip()} {last.strip()}
 Room: {room.strip()}
 HWU ID: {sid.strip()}
 Granted access by: RLW Tim & RLW Ovye
 Granted access at: {current_time}"""
+    
+    pyautogui.moveTo(*DESC, duration=0.1)
+    pyautogui.click()
+    time.sleep(0.05)
+    pyautogui.write(template, interval=0.003)
+    
+    # Page down after description
+    pyautogui.press('pagedown')
+    time.sleep(0.1)
+    
+    # Final field
+    type_at(110, 662, "No", press_enter=True)
+    
+    print("Script completed!")
 
-pyautogui.moveTo(*DESC, duration=0.1)
-pyautogui.click()
-time.sleep(0.05)
-pyautogui.write(template, interval=0.003)
+def on_activate():
+    print("Hotkey activated! Starting script...")
+    main_script()
 
-# Final field
-type_at(110, 662, "No", press_enter=True)
+# Set up hotkey listener (Ctrl+Shift+K)
+hotkey = keyboard.GlobalHotKeys({
+    '<ctrl>+<shift>+k': on_activate
+})
+
+if __name__ == "__main__":
+    print("Script loaded. Press Ctrl+Shift+K to start.")
+    print("Press Ctrl+C to exit.")
+    
+    hotkey.start()
+    
+    try:
+        # Keep the script running
+        hotkey.join()
+    except KeyboardInterrupt:
+        print("\nExiting...")
+        hotkey.stop()
