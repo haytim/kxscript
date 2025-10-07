@@ -191,12 +191,12 @@ def run_automation():
         # Enter initial fields
         print("Entering initial fields...")
         fields = [
-            (110, 466, "Tim Hayes", False),
-            (110, 545, "tlh2000@hw.ac.uk", False),
-            (110, 742, "Edinburgh", True),
-            (110, 835, building_name, True),
-            (110, 930, floor_level, True),
-            (110, 1020, room.strip(), False),
+            (110, 416, "Tim Hayes", False),
+            (110, 495, "tlh2000@hw.ac.uk", False),
+            (110, 692, "Edinburgh", True),
+            (110, 785, building_name, True),
+            (110, 880, floor_level, True),
+            (110, 970, room.strip(), False),
         ]
         
         for x, y, text, enter in fields:
@@ -211,9 +211,9 @@ def run_automation():
         # Continue with remaining fields
         print("Entering remaining fields...")
         remaining_fields = [
-            (110, 515, "Edinburgh Campus - Residences", True),
-            (110, 700, "Access - Supporting Student Residents", True),
-            (110, 800, current_datetime, False),
+            (110, 415, "Edinburgh Campus - Residences", True),
+            (110, 605, "Access - Supporting Student Residents", True),
+            (110, 705, current_datetime, False),
         ]
         
         for x, y, text, enter in remaining_fields:
@@ -240,7 +240,7 @@ Granted access at: {current_time}"""
         
         # Final field
         print("Entering final field...")
-        type_at(110, 662, "No", press_enter=True)
+        type_at(110, 665, "No", press_enter=True)
         
         print("Automation completed successfully!")
         
