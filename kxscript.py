@@ -132,33 +132,54 @@ def parse_room_info(room_number):
     return "Unknown Building", "Unknown Floor"
 
 def copy_field(pos, triple=False):
-    pyautogui.moveTo(*pos, duration=0.05)
+    pyautogui.moveTo(*pos, duration=0.1)
+    time.sleep(0.1)
     clicks = 3 if triple else 2
     pyautogui.click(clicks=clicks)
-    time.sleep(0.1)
+    time.sleep(0.2)
     pyautogui.hotkey('ctrl', 'c')
-    time.sleep(0.1)
+    time.sleep(0.2)
     return pyperclip.paste()
 
 def type_at(x, y, text, press_enter=False):
-    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.moveTo(x, y, duration=0.2)
+    time.sleep(0.2)
     pyautogui.click()
-    time.sleep(0.1)
-    pyautogui.write(text, interval=0.01)
+    time.sleep(0.3)
+    pyautogui.write(text, interval=0.02)
+    time.sleep(0.2)
     if press_enter:
         pyautogui.press('enter')
-    time.sleep(0.1)
+        time.sleep(0.3)
 
-def focus_chrome():
+def focus_chrome_window():
     """
-    Focus Chrome window using Alt+Tab approach
-    This is more reliable than pygetwindow for switching to existing windows
+    More robust Chrome window focusing using multiple attempts
     """
-    print("Switching to Chrome window...")
-    # Use Alt+Tab to switch to Chrome (assumes Chrome was the last active window)
-    pyautogui.hotkey('alt', 'tab')
-    time.sleep(0.5)
-    return True
+    print("Attempting to focus Chrome window...")
+    
+    # Try multiple times with increasing delays
+    for attempt in range(3):
+        print(f"  Attempt {attempt + 1}/3...")
+        
+        # Try clicking on a known Chrome window position (if you know where it typically is)
+        # Or use Alt+Tab multiple times to cycle through windows
+        pyautogui.hotkey('alt', 'tab')
+        time.sleep(0.8)  # Longer delay to ensure window switch completes
+        
+        # Optional: Add a small mouse movement to activate the window
+        current_pos = pyautogui.position()
+        pyautogui.moveTo(current_pos.x + 10, current_pos.y + 10, duration=0.1)
+        pyautogui.moveTo(current_pos.x, current_pos.y, duration=0.1)
+        time.sleep(0.3)
+        
+        # You could add logic here to verify Chrome is focused
+        # For now, we'll assume it worked after the third attempt
+        if attempt == 2:
+            print("  Chrome should now be focused")
+            return True
+    
+    return False
 
 def run_automation():
     global script_running
@@ -185,10 +206,12 @@ def run_automation():
         current_time = datetime.datetime.now().strftime("%H:%M")
         current_datetime = datetime.datetime.now().strftime("%d %b %Y %H:%M")
         
-        # Focus Chrome
-        focus_chrome()
+        # Focus Chrome with better reliability
+        print("Switching to Chrome...")
+        focus_chrome_window()
+        time.sleep(0.5)  # Extra delay to ensure Chrome is ready
         
-        # Enter initial fields
+        # Enter initial fields with delays
         print("Entering initial fields...")
         fields = [
             (110, 416, "Tim Hayes", False),
@@ -199,14 +222,17 @@ def run_automation():
             (110, 970, room.strip(), False),
         ]
         
-        for x, y, text, enter in fields:
+        for i, (x, y, text, enter) in enumerate(fields):
+            print(f"  Field {i+1}/{len(fields)}: {text[:20]}...")
             type_at(x, y, text, press_enter=enter)
+            time.sleep(0.3)  # Additional delay between fields
         
-        # Wait for fields to be entered before page down
+        # Wait for all fields to be entered before page down
+        print("Waiting before Page Down...")
+        time.sleep(0.5)
         print("Pressing Page Down (after room entry)...")
-        time.sleep(0.3)
         pyautogui.press('pagedown')
-        time.sleep(0.3)
+        time.sleep(0.5)
         
         # Continue with remaining fields
         print("Entering remaining fields...")
@@ -216,8 +242,10 @@ def run_automation():
             (110, 705, current_datetime, False),
         ]
         
-        for x, y, text, enter in remaining_fields:
+        for i, (x, y, text, enter) in enumerate(remaining_fields):
+            print(f"  Field {i+1}/{len(remaining_fields)}: {text[:30]}...")
             type_at(x, y, text, press_enter=enter)
+            time.sleep(0.3)
         
         # Paste the template after the date field
         print("Pasting template...")
@@ -227,20 +255,25 @@ HWU ID: {sid.strip()}
 Granted access by: RLW Tim & RLW Ovye
 Granted access at: {current_time}"""
         
-        pyautogui.moveTo(*DESC, duration=0.1)
+        time.sleep(0.3)
+        pyautogui.moveTo(*DESC, duration=0.2)
+        time.sleep(0.2)
         pyautogui.click()
-        time.sleep(0.1)
-        pyautogui.write(template, interval=0.003)
+        time.sleep(0.3)
+        pyautogui.write(template, interval=0.005)
+        time.sleep(0.3)
         
         # Wait before page down
-        time.sleep(0.3)
+        print("Waiting before Page Down...")
+        time.sleep(0.5)
         print("Pressing Page Down (after description)...")
         pyautogui.press('pagedown')
-        time.sleep(0.3)
+        time.sleep(0.5)
         
         # Final field
         print("Entering final field...")
         type_at(110, 665, "No", press_enter=True)
+        time.sleep(0.3)
         
         print("Automation completed successfully!")
         
@@ -261,7 +294,7 @@ def on_activate_exit():
     global exit_program
     print("\n[EXIT HOTKEY PRESSED] - Exiting program...")
     exit_program = True
-    return False  # Stop the listener
+    return False
 
 def main():
     """Main entry point with hotkey listeners"""
