@@ -139,14 +139,29 @@ def type_at(x, y, text, press_enter=False):
         pyautogui.press('enter')
     time.sleep(0.05)
 
-def focus_chrome():
-    # Try to focus Chrome using pygetwindow (only use attributes that exist)
-    chrome_windows = [w for w in gw.getWindowsWithTitle('Chrome') if not w.isMinimized]
-    if chrome_windows:
-        chrome_windows[0].activate()
-        time.sleep(0.2)
-        return True
-    # Fallback: Alt+Tab (will switch to next window)
+def focus_chrome(tab_hint=None):
+    import pygetwindow as gw
+    import pyautogui
+    import time
+
+    # Optionally focus by tab/page title
+    if tab_hint:
+        chrome_windows = [w for w in gw.getWindowsWithTitle(tab_hint)]
+    else:
+        chrome_windows = [w for w in gw.getWindowsWithTitle('Chrome')]
+
+    for w in chrome_windows:
+        try:
+            if w.isMinimized:
+                w.restore()
+                time.sleep(0.2)
+            w.activate()
+            time.sleep(0.2)
+            return True
+        except Exception as e:
+            print(f"Window activation error: {e}")
+
+    print("No Chrome window found or could not activate. Trying Alt+Tab fallback.")
     pyautogui.hotkey('alt', 'tab')
     time.sleep(0.5)
     return False
