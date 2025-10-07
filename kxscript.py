@@ -140,8 +140,8 @@ def type_at(x, y, text, press_enter=False):
     time.sleep(0.05)
 
 def focus_chrome():
-    # Try to focus Chrome using pygetwindow
-    chrome_windows = [w for w in gw.getWindowsWithTitle('Chrome') if w.isVisible and not w.isMinimized]
+    # Try to focus Chrome using pygetwindow (only use attributes that exist)
+    chrome_windows = [w for w in gw.getWindowsWithTitle('Chrome') if not w.isMinimized]
     if chrome_windows:
         chrome_windows[0].activate()
         time.sleep(0.2)
