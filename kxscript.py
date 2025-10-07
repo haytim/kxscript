@@ -106,7 +106,7 @@ def parse_room_info(room_number):
             floor_level = str(floor_digit - 1)
         return building_name, floor_level
     # Weird room numbers: CMEC2.F8.01, CMWC3.F8.05, CMEB2.F8.01, CMWB3.F8.05, CMWA2.B.01, CMEA2.B.12, CMWCLG.F1.04
-    weird_pattern = r'^(CME|CMW)[A-Z]?([0-9G]|LG)\..*$'
+    weird_pattern = r'^(CME|CMW)[A-Z]?([0-9G]|LG|B)\..*$'
     match = re.match(weird_pattern, room_number)
     if match:
         building_code = match.group(1)
@@ -133,38 +133,42 @@ def copy_field(pos, triple=False):
 def type_at(x, y, text, press_enter=False):
     pyautogui.moveTo(x, y, duration=0.1)
     pyautogui.click()
-    time.sleep(0.05)
+    time.sleep(0.1)  # Increased delay after click
     pyautogui.write(text, interval=0.01)
+    time.sleep(0.1)  # Wait for typing to complete
     if press_enter:
         pyautogui.press('enter')
-    time.sleep(0.05)
+        time.sleep(0.1)  # Wait after pressing enter
 
 def focus_chrome(tab_hint=None):
-    import pygetwindow as gw
-    import pyautogui
-    import time
+    try:
+        # Optionally focus by tab/page title
+        if tab_hint:
+            chrome_windows = [w for w in gw.getWindowsWithTitle(tab_hint)]
+        else:
+            chrome_windows = [w for w in gw.getWindowsWithTitle('Chrome')]
 
-    # Optionally focus by tab/page title
-    if tab_hint:
-        chrome_windows = [w for w in gw.getWindowsWithTitle(tab_hint)]
-    else:
-        chrome_windows = [w for w in gw.getWindowsWithTitle('Chrome')]
+        for w in chrome_windows:
+            try:
+                if w.isMinimized:
+                    w.restore()
+                    time.sleep(0.3)
+                w.activate()
+                time.sleep(0.3)
+                return True
+            except Exception as e:
+                print(f"Window activation error: {e}")
+                continue
 
-    for w in chrome_windows:
-        try:
-            if w.isMinimized:
-                w.restore()
-                time.sleep(0.2)
-            w.activate()
-            time.sleep(0.2)
-            return True
-        except Exception as e:
-            print(f"Window activation error: {e}")
-
-    print("No Chrome window found or could not activate. Trying Alt+Tab fallback.")
-    pyautogui.hotkey('alt', 'tab')
-    time.sleep(0.5)
-    return False
+        print("No Chrome window found or could not activate. Trying Alt+Tab fallback.")
+        pyautogui.hotkey('alt', 'tab')
+        time.sleep(0.5)
+        return False
+    except Exception as e:
+        print(f"Error in focus_chrome: {e}")
+        pyautogui.hotkey('alt', 'tab')
+        time.sleep(0.5)
+        return False
 
 def run_automation():
     global script_running
@@ -181,8 +185,10 @@ def run_automation():
         building_name, floor_level = parse_room_info(room)
         current_time = datetime.datetime.now().strftime("%H:%M")
         current_datetime = datetime.datetime.now().strftime("%d %b %Y %H:%M")
+        
         # Focus Chrome robustly
         focus_chrome()
+        
         fields = [
             (110, 466, "Tim Hayes", False),
             (110, 545, "tlh2000@hw.ac.uk", False),
@@ -191,32 +197,47 @@ def run_automation():
             (110, 930, floor_level, True),
             (110, 1020, room.strip(), False),
         ]
+        
         for x, y, text, enter in fields:
             type_at(x, y, text, press_enter=enter)
+        
+        # Ensure all typing is complete before page down
+        time.sleep(0.3)
         pyautogui.press('pagedown')
-        time.sleep(0.1)
+        time.sleep(0.3)
+        
         remaining_fields = [
             (110, 515, "Edinburgh Campus - Residences", True),
             (110, 700, "Access - Supporting Student Residents", True),
             (110, 800, current_datetime, False),
         ]
+        
         for x, y, text, enter in remaining_fields:
             type_at(x, y, text, press_enter=enter)
+        
         template = f"""Student's full name: {first.strip()} {last.strip()}
 Room: {room.strip()}
 HWU ID: {sid.strip()}
 Granted access by: RLW Tim & RLW Ovye
 Granted access at: {current_time}"""
+        
         pyautogui.moveTo(*DESC, duration=0.1)
         pyautogui.click()
-        time.sleep(0.05)
-        pyautogui.write(template, interval=0.003)
-        pyautogui.press('pagedown')
         time.sleep(0.1)
+        pyautogui.write(template, interval=0.003)
+        
+        # Ensure description is complete before page down
+        time.sleep(0.3)
+        pyautogui.press('pagedown')
+        time.sleep(0.3)
+        
         type_at(110, 662, "No", press_enter=True)
+        
         print("Automation completed successfully!")
     except Exception as e:
         print(f"Error during automation: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         script_running = False
 
