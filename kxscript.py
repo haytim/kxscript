@@ -5,20 +5,17 @@ import pyperclip
 import re
 from pynput import keyboard
 import sys
+import pygetwindow as gw
 
-# Failsafe: Move mouse to top-left corner to stop script
 pyautogui.FAILSAFE = True
 
-# Global flag to control script execution
 script_running = False
 exit_program = False
 
-# Example absolute coordinates (replace with your own)
 FIRST = (283, 286)
 LAST = (430, 286)
 ID = (297, 238)
 ROOM = (256, 582)
-CHROME = (961, 1056)
 DESC = (100, 900)
 
 BUILDING_NAMES = {
@@ -36,18 +33,13 @@ BUILDING_NAMES = {
 }
 
 def parse_room_info(room_number):
-    """
-    Parse room number and return (building_name, floor_level)
-    """
     room_number = room_number.strip()
-    
     # Simple room numbers: HH.312, RBH.213, GBH.210, RSH.232, TH.310, HH.G.12
     simple_pattern = r'^([A-Z]+)\.([0-9G])\.?(\d*)$'
     match = re.match(simple_pattern, room_number)
     if match:
         building_code = match.group(1)
         floor_char = match.group(2)
-        
         if building_code in BUILDING_NAMES:
             building_name = BUILDING_NAMES[building_code]
             if floor_char == 'G':
@@ -55,7 +47,6 @@ def parse_room_info(room_number):
             else:
                 floor_level = floor_char
             return building_name, floor_level
-    
     # New room numbers: AM.F21A, MS.F31E, MF.F9B
     new_pattern = r'^(AM|MS|MF)\.F(\d+)[A-Z]?$'
     match = re.match(new_pattern, room_number)
@@ -63,7 +54,6 @@ def parse_room_info(room_number):
         building_code = match.group(1)
         flat_num = int(match.group(2))
         building_name = BUILDING_NAMES[building_code]
-        
         if building_code == 'MF':
             if 1 <= flat_num <= 7:
                 floor_level = 'Ground'
@@ -97,16 +87,13 @@ def parse_room_info(room_number):
                 floor_level = '3'
             else:
                 floor_level = '4'
-        
         return building_name, floor_level
-    
     # Old room numbers: LHHA.120, LHHB.312, LHHC.213, LHHD.234
     old_pattern = r'^LHH[A-D]\.(\d)(\d{2})$'
     match = re.match(old_pattern, room_number)
     if match:
         floor_digit = int(match.group(1))
         building_name = BUILDING_NAMES['LHH']
-        
         if floor_digit == 1:
             floor_level = 'Ground'
         elif floor_digit == 2:
@@ -117,9 +104,7 @@ def parse_room_info(room_number):
             floor_level = '3'
         else:
             floor_level = str(floor_digit - 1)
-        
         return building_name, floor_level
-    
     # Weird room numbers: CMEC2.F8.01, CMWC3.F8.05, CMEB2.F8.01, CMWB3.F8.05, CMWA2.B.01, CMEA2.B.12, CMWCLG.F1.04
     weird_pattern = r'^(CME|CMW)[A-Z]?([0-9G]|LG)\..*$'
     match = re.match(weird_pattern, room_number)
@@ -127,21 +112,16 @@ def parse_room_info(room_number):
         building_code = match.group(1)
         floor_char = match.group(2)
         building_name = BUILDING_NAMES[building_code]
-        
         if floor_char == 'G' or floor_char == 'LG':
             floor_level = 'Ground'
         elif floor_char == 'B':
             floor_level = 'Basement'
         else:
             floor_level = floor_char
-        
         return building_name, floor_level
-    
-    # Default fallback
     return "Unknown Building", "Unknown Floor"
 
 def copy_field(pos, triple=False):
-    """Copy text from a field at given position"""
     pyautogui.moveTo(*pos, duration=0.05)
     clicks = 3 if triple else 2
     pyautogui.click(clicks=clicks)
@@ -151,7 +131,6 @@ def copy_field(pos, triple=False):
     return pyperclip.paste()
 
 def type_at(x, y, text, press_enter=False):
-    """Type text at specific coordinates"""
     pyautogui.moveTo(x, y, duration=0.1)
     pyautogui.click()
     time.sleep(0.05)
@@ -160,36 +139,35 @@ def type_at(x, y, text, press_enter=False):
         pyautogui.press('enter')
     time.sleep(0.05)
 
+def focus_chrome():
+    # Try to focus Chrome using pygetwindow
+    chrome_windows = [w for w in gw.getWindowsWithTitle('Chrome') if w.isVisible and not w.isMinimized]
+    if chrome_windows:
+        chrome_windows[0].activate()
+        time.sleep(0.2)
+        return True
+    # Fallback: Alt+Tab (will switch to next window)
+    pyautogui.hotkey('alt', 'tab')
+    time.sleep(0.5)
+    return False
+
 def run_automation():
-    """Main automation function"""
     global script_running
-    
     if script_running:
         print("Script is already running!")
         return
-    
     script_running = True
     print("Starting automation...")
-    
     try:
-        # Copy fields from source
         first = copy_field(FIRST)
         last = copy_field(LAST)
         sid = copy_field(ID)
         room = copy_field(ROOM)
-        
-        # Parse room information
         building_name, floor_level = parse_room_info(room)
-        
         current_time = datetime.datetime.now().strftime("%H:%M")
         current_datetime = datetime.datetime.now().strftime("%d %b %Y %H:%M")
-        
-        # Navigate to Chrome (once)
-        pyautogui.moveTo(*CHROME, duration=0.1)
-        pyautogui.click()
-        time.sleep(0.1)
-        
-        # Sequence of data entry
+        # Focus Chrome robustly
+        focus_chrome()
         fields = [
             (110, 466, "Tim Hayes", False),
             (110, 545, "tlh2000@hw.ac.uk", False),
@@ -198,66 +176,47 @@ def run_automation():
             (110, 930, floor_level, True),
             (110, 1020, room.strip(), False),
         ]
-        
         for x, y, text, enter in fields:
             type_at(x, y, text, press_enter=enter)
-        
-        # Press Page Down after room entry
         pyautogui.press('pagedown')
         time.sleep(0.1)
-        
-        # Continue with remaining fields
         remaining_fields = [
             (110, 515, "Edinburgh Campus - Residences", True),
             (110, 700, "Access - Supporting Student Residents", True),
             (110, 800, current_datetime, False),
         ]
-        
         for x, y, text, enter in remaining_fields:
             type_at(x, y, text, press_enter=enter)
-        
-        # Paste the template after the date field
         template = f"""Student's full name: {first.strip()} {last.strip()}
 Room: {room.strip()}
 HWU ID: {sid.strip()}
 Granted access by: RLW Tim & RLW Ovye
 Granted access at: {current_time}"""
-        
         pyautogui.moveTo(*DESC, duration=0.1)
         pyautogui.click()
         time.sleep(0.05)
         pyautogui.write(template, interval=0.003)
-        
-        # Press Page Down after description
         pyautogui.press('pagedown')
         time.sleep(0.1)
-        
-        # Final field
         type_at(110, 662, "No", press_enter=True)
-        
         print("Automation completed successfully!")
-        
     except Exception as e:
         print(f"Error during automation: {e}")
     finally:
         script_running = False
 
 def on_activate_start():
-    """Called when start hotkey is pressed"""
     print("\n[START HOTKEY PRESSED]")
     run_automation()
 
 def on_activate_exit():
-    """Called when exit hotkey is pressed"""
     global exit_program
     print("\n[EXIT HOTKEY PRESSED] - Exiting program...")
     exit_program = True
     return False  # Stop the listener
 
 def main():
-    """Main entry point with hotkey listeners"""
     global exit_program
-    
     print("=" * 60)
     print("PyAutoGUI Automation Script")
     print("=" * 60)
@@ -267,18 +226,12 @@ def main():
     print("\nMove mouse to top-left corner for emergency stop!")
     print("=" * 60)
     print("\nWaiting for hotkey press...\n")
-    
-    # Set up hotkey listeners
     with keyboard.GlobalHotKeys({
             '<ctrl>+<shift>+s': on_activate_start,
             '<ctrl>+<shift>+q': on_activate_exit}) as h:
-        
-        # Keep the program running until exit_program is True
         while not exit_program:
             time.sleep(0.1)
-        
         h.stop()
-    
     print("\nProgram terminated.")
     sys.exit(0)
 
