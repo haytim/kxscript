@@ -147,7 +147,7 @@ def type_at(x, y, text, press_enter=False):
     pyautogui.click()
     time.sleep(0.3)
     pyautogui.write(text, interval=0.02)
-    time.sleep(0.2)
+    time.sleep(1)
     if press_enter:
         pyautogui.press('enter')
         time.sleep(0.3)
@@ -225,14 +225,14 @@ def run_automation():
         for i, (x, y, text, enter) in enumerate(fields):
             print(f"  Field {i+1}/{len(fields)}: {text[:20]}...")
             type_at(x, y, text, press_enter=enter)
-            time.sleep(0.3)  # Additional delay between fields
+            time.sleep(0.8)  # Additional delay between fields
         
         # Wait for all fields to be entered before page down
         print("Waiting before Page Down...")
-        time.sleep(0.5)
+        time.sleep(1.5)
         print("Pressing Page Down (after room entry)...")
         pyautogui.press('pagedown')
-        time.sleep(0.5)
+        time.sleep(1.5)
         
         # Continue with remaining fields
         print("Entering remaining fields...")
@@ -245,7 +245,7 @@ def run_automation():
         for i, (x, y, text, enter) in enumerate(remaining_fields):
             print(f"  Field {i+1}/{len(remaining_fields)}: {text[:30]}...")
             type_at(x, y, text, press_enter=enter)
-            time.sleep(0.3)
+            time.sleep(0.8)
         
         # Paste the template after the date field
         print("Pasting template...")
@@ -261,14 +261,14 @@ Granted access at: {current_time}"""
         pyautogui.click()
         time.sleep(0.3)
         pyautogui.write(template, interval=0.005)
-        time.sleep(0.3)
+        time.sleep(2)
         
         # Wait before page down
         print("Waiting before Page Down...")
         time.sleep(0.5)
         print("Pressing Page Down (after description)...")
         pyautogui.press('pagedown')
-        time.sleep(0.5)
+        time.sleep(1)
         
         # Final field
         print("Entering final field...")
