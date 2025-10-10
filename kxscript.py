@@ -5,6 +5,8 @@ import pyperclip
 import re
 from pynput import keyboard
 import sys
+import subprocess
+import platform
 
 pyautogui.FAILSAFE = True
 
@@ -154,32 +156,99 @@ def type_at(x, y, text, press_enter=False):
 
 def focus_chrome_window():
     """
-    More robust Chrome window focusing using multiple attempts
+    Focus Chrome window using platform-specific methods
     """
     print("Attempting to focus Chrome window...")
     
-    # Try multiple times with increasing delays
-    for attempt in range(3):
-        print(f"  Attempt {attempt + 1}/3...")
-        
-        # Try clicking on a known Chrome window position (if you know where it typically is)
-        # Or use Alt+Tab multiple times to cycle through windows
-        pyautogui.hotkey('alt', 'tab')
-        time.sleep(0.8)  # Longer delay to ensure window switch completes
-        
-        # Optional: Add a small mouse movement to activate the window
-        current_pos = pyautogui.position()
-        pyautogui.moveTo(current_pos.x + 10, current_pos.y + 10, duration=0.1)
-        pyautogui.moveTo(current_pos.x, current_pos.y, duration=0.1)
-        time.sleep(0.3)
-        
-        # You could add logic here to verify Chrome is focused
-        # For now, we'll assume it worked after the third attempt
-        if attempt == 2:
-            print("  Chrome should now be focused")
-            return True
+    system = platform.system()
     
-    return False
+    try:
+        if system == "Windows":
+            # Method 1: Use PowerShell to bring Chrome to front
+            print("  Using Windows method...")
+            # Try different Chrome process names
+            for chrome_name in ["chrome", "Chrome"]:
+                try:
+                    powershell_cmd = f'''
+                    $wshell = New-Object -ComObject wscript.shell;
+                    $wshell.AppActivate("{chrome_name}")
+                    '''
+                    subprocess.run(["powershell", "-Command", powershell_cmd], 
+                                 capture_output=True, timeout=2)
+                    time.sleep(0.5)
+                    print(f"  Attempted to focus using AppActivate('{chrome_name}')")
+                except:
+                    continue
+            
+            # Method 2: Try using window title matching
+            try:
+                # This works if you know part of the Chrome window title
+                powershell_cmd = '''
+                Add-Type @"
+                    using System;
+                    using System.Runtime.InteropServices;
+                    public class Win {
+                        [DllImport("user32.dll")]
+                        public static extern bool SetForegroundWindow(IntPtr hWnd);
+                        [DllImport("user32.dll")]
+                        public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+                    }
+"@
+                $chrome = Get-Process | Where-Object {$_.ProcessName -like "*chrome*"} | Select-Object -First 1
+                if ($chrome) {
+                    $handle = $chrome.MainWindowHandle
+                    [Win]::SetForegroundWindow($handle)
+                }
+                '''
+                subprocess.run(["powershell", "-Command", powershell_cmd], 
+                             capture_output=True, timeout=3)
+                time.sleep(0.8)
+                print("  Chrome window focused successfully")
+                return True
+            except Exception as e:
+                print(f"  PowerShell method failed: {e}")
+        
+        elif system == "Darwin":  # macOS
+            print("  Using macOS method...")
+            subprocess.run(["osascript", "-e", 
+                          'tell application "Google Chrome" to activate'], 
+                         capture_output=True, timeout=2)
+            time.sleep(0.5)
+            print("  Chrome activated on macOS")
+            return True
+        
+        elif system == "Linux":
+            print("  Using Linux method...")
+            # Try wmctrl first (most reliable)
+            try:
+                subprocess.run(["wmctrl", "-a", "Chrome"], 
+                             capture_output=True, timeout=2)
+                time.sleep(0.5)
+                print("  Chrome focused using wmctrl")
+                return True
+            except:
+                # Fallback to xdotool
+                try:
+                    subprocess.run(["xdotool", "search", "--name", "Chrome", 
+                                  "windowactivate"], 
+                                 capture_output=True, timeout=2)
+                    time.sleep(0.5)
+                    print("  Chrome focused using xdotool")
+                    return True
+                except:
+                    print("  Install wmctrl or xdotool for better window focusing")
+        
+        # Fallback: Simple click method
+        print("  Using fallback click method...")
+        print("  Please ensure Chrome window is visible on screen")
+        time.sleep(1)
+        return True
+        
+    except Exception as e:
+        print(f"  Error focusing Chrome: {e}")
+        print("  Continuing anyway - please ensure Chrome is visible")
+        time.sleep(1)
+        return False
 
 def run_automation():
     global script_running
@@ -225,14 +294,14 @@ def run_automation():
         for i, (x, y, text, enter) in enumerate(fields):
             print(f"  Field {i+1}/{len(fields)}: {text[:20]}...")
             type_at(x, y, text, press_enter=enter)
-            time.sleep(0.8)  # Additional delay between fields
+            time.sleep(1.5)  # Additional delay between fields
         
         # Wait for all fields to be entered before page down
         print("Waiting before Page Down...")
         time.sleep(1.5)
         print("Pressing Page Down (after room entry)...")
         pyautogui.press('pagedown')
-        time.sleep(1.5)
+        time.sleep(2)
         
         # Continue with remaining fields
         print("Entering remaining fields...")
@@ -245,7 +314,7 @@ def run_automation():
         for i, (x, y, text, enter) in enumerate(remaining_fields):
             print(f"  Field {i+1}/{len(remaining_fields)}: {text[:30]}...")
             type_at(x, y, text, press_enter=enter)
-            time.sleep(0.8)
+            time.sleep(2.8)
         
         # Paste the template after the date field
         print("Pasting template...")
@@ -265,10 +334,10 @@ Granted access at: {current_time}"""
         
         # Wait before page down
         print("Waiting before Page Down...")
-        time.sleep(0.5)
+        time.sleep(1.5)
         print("Pressing Page Down (after description)...")
         pyautogui.press('pagedown')
-        time.sleep(1)
+        time.sleep(2)
         
         # Final field
         print("Entering final field...")
