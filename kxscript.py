@@ -7,11 +7,13 @@ from pynput import keyboard
 import sys
 import subprocess
 import platform
+import threading
 
 pyautogui.FAILSAFE = True
 
 script_running = False
 exit_program = False
+last_run_time = 0  # Track last run time to prevent rapid re-triggers
 
 FIRST = (283, 286)
 LAST = (430, 286)
@@ -235,18 +237,25 @@ def focus_chrome_window():
         return False
 
 def run_automation():
-    global script_running
+    global script_running, last_run_time
     
     # Prevent multiple simultaneous runs
     if script_running:
         print("Script is already running! Ignoring this trigger.")
         return
     
+    # Prevent rapid re-triggers (must wait at least 3 seconds since last run)
+    current_time = time.time()
+    if current_time - last_run_time < 3.0:
+        print(f"Too soon since last run. Please wait {3.0 - (current_time - last_run_time):.1f} more seconds.")
+        return
+    
     script_running = True
+    last_run_time = current_time
     print("Starting automation...")
     
-    # Add a small delay to ensure hotkey is released
-    time.sleep(0.3)
+    # Add a delay to ensure hotkey is fully released
+    time.sleep(0.5)
     
     try:
         # Copy fields from source
@@ -260,7 +269,7 @@ def run_automation():
         building_name, floor_level = parse_room_info(room)
         print(f"Parsed room: {room} -> Building: {building_name}, Floor: {floor_level}")
         
-        current_time = datetime.datetime.now().strftime("%H:%M")
+        current_time_str = datetime.datetime.now().strftime("%H:%M")
         current_datetime = datetime.datetime.now().strftime("%d %b %Y %H:%M")
         
         # Focus Chrome with better reliability
@@ -318,7 +327,7 @@ def run_automation():
 Room: {room.strip()}
 HWU ID: {sid.strip()}
 Granted access by: RLW Tim & RLW Ovye
-Granted access at: {current_time}"""
+Granted access at: {current_time_str}"""
         
         time.sleep(0.2)
         pyautogui.moveTo(*DESC, duration=0.2)
@@ -341,25 +350,30 @@ Granted access at: {current_time}"""
         time.sleep(0.3)
         
         print("Automation completed successfully!")
+        print("Waiting 3 seconds before accepting new runs...")
         
         # Add delay before allowing next run to prevent accidental double-trigger
-        time.sleep(1.0)
+        time.sleep(2.0)
         
+    except pyautogui.FailSafeException:
+        print("\n!!! FAIL-SAFE TRIGGERED !!!")
+        print("Mouse moved to screen corner - automation stopped for safety.")
+        print("This is a safety feature. Script is ready for next run.")
     except Exception as e:
         print(f"Error during automation: {e}")
         import traceback
         traceback.print_exc()
     finally:
         script_running = False
-        print("Ready for next automation run.")
+        print("Ready for next automation run.\n")
 
 def on_activate_start():
     """Called when start hotkey is pressed"""
-    print("\n[START HOTKEY PRESSED]")
-    
-    # Check if already running to prevent double-trigger
+    # Run in a separate thread to prevent blocking the hotkey listener
     if not script_running:
-        run_automation()
+        print("\n[START HOTKEY PRESSED]")
+        thread = threading.Thread(target=run_automation, daemon=True)
+        thread.start()
     else:
         print("Automation already in progress, ignoring hotkey.")
 
