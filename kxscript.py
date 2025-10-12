@@ -144,26 +144,29 @@ def copy_field(pos, triple=False):
     return pyperclip.paste()
 
 def type_at(x, y, text, press_enter=False):
-    """Type text at specific coordinates with 1-second delay before spaces"""
-    pyautogui.moveTo(x, y, duration=0.2)
-    time.sleep(0.2)
+    """Type text at specific coordinates with 0.5-second delay before spaces"""
+    pyautogui.moveTo(x, y, duration=0.1)
+    time.sleep(0.1)
     pyautogui.click()
-    time.sleep(0.2)
+    time.sleep(0.15)
     
-    # Type character by character with special handling for spaces
-    for char in text:
-        if char == ' ':
-            time.sleep(0.5)  # 1 second delay before space
+    # Split text by spaces to handle multi-word entries efficiently
+    words = text.split(' ')
+    
+    for i, word in enumerate(words):
+        # Type the word quickly (no interval between characters)
+        pyautogui.typewrite(word, interval=0)
+        
+        # If not the last word, add space with delay
+        if i < len(words) - 1:
+            time.sleep(0.5)  # 0.5 second delay before space
             pyautogui.press('space')
-            time.sleep(0.05)  # Small delay after space
-        else:
-            pyautogui.write(char, interval=0)
     
-    time.sleep(1)
+    time.sleep(0.3)
     
     if press_enter:
         pyautogui.press('enter')
-        time.sleep(0.3)
+        time.sleep(0.2)
 
 def focus_chrome_window():
     """
@@ -234,12 +237,16 @@ def focus_chrome_window():
 def run_automation():
     global script_running
     
+    # Prevent multiple simultaneous runs
     if script_running:
-        print("Script is already running!")
+        print("Script is already running! Ignoring this trigger.")
         return
     
     script_running = True
     print("Starting automation...")
+    
+    # Add a small delay to ensure hotkey is released
+    time.sleep(0.3)
     
     try:
         # Copy fields from source
@@ -283,7 +290,7 @@ def run_automation():
         for i, (x, y, text, enter) in enumerate(fields):
             print(f"  Field {i+1}/{len(fields)}: {text[:20]}...")
             type_at(x, y, text, press_enter=enter)
-            time.sleep(2.75)  # Additional delay between fields
+            time.sleep(3)  # Additional delay between fields
         
         # Wait for all fields to be entered before page down
         print("Waiting before Page Down...")
@@ -335,17 +342,26 @@ Granted access at: {current_time}"""
         
         print("Automation completed successfully!")
         
+        # Add delay before allowing next run to prevent accidental double-trigger
+        time.sleep(1.0)
+        
     except Exception as e:
         print(f"Error during automation: {e}")
         import traceback
         traceback.print_exc()
     finally:
         script_running = False
+        print("Ready for next automation run.")
 
 def on_activate_start():
     """Called when start hotkey is pressed"""
     print("\n[START HOTKEY PRESSED]")
-    run_automation()
+    
+    # Check if already running to prevent double-trigger
+    if not script_running:
+        run_automation()
+    else:
+        print("Automation already in progress, ignoring hotkey.")
 
 def on_activate_exit():
     """Called when exit hotkey is pressed"""
