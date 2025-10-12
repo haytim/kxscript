@@ -138,9 +138,9 @@ def copy_field(pos, triple=False):
     time.sleep(0.1)
     clicks = 3 if triple else 2
     pyautogui.click(clicks=clicks)
-    time.sleep(0.2)
+    time.sleep(0.1)
     pyautogui.hotkey('ctrl', 'c')
-    time.sleep(0.2)
+    time.sleep(0.1)
     return pyperclip.paste()
 
 def type_at(x, y, text, press_enter=False):
@@ -148,16 +148,16 @@ def type_at(x, y, text, press_enter=False):
     pyautogui.moveTo(x, y, duration=0.2)
     time.sleep(0.2)
     pyautogui.click()
-    time.sleep(0.3)
+    time.sleep(0.2)
     
     # Type character by character with special handling for spaces
     for char in text:
         if char == ' ':
-            time.sleep(1.0)  # 1 second delay before space
+            time.sleep(0.5)  # 1 second delay before space
             pyautogui.press('space')
-            time.sleep(0.1)  # Small delay after space
+            time.sleep(0.05)  # Small delay after space
         else:
-            pyautogui.write(char, interval=0.02)
+            pyautogui.write(char, interval=0)
     
     time.sleep(1)
     
@@ -219,36 +219,6 @@ def focus_chrome_window():
             except Exception as e:
                 print(f"  PowerShell method failed: {e}")
         
-        elif system == "Darwin":  # macOS
-            print("  Using macOS method...")
-            subprocess.run(["osascript", "-e", 
-                          'tell application "Google Chrome" to activate'], 
-                         capture_output=True, timeout=2)
-            time.sleep(0.5)
-            print("  Chrome activated on macOS")
-            return True
-        
-        elif system == "Linux":
-            print("  Using Linux method...")
-            # Try wmctrl first (most reliable)
-            try:
-                subprocess.run(["wmctrl", "-a", "Chrome"], 
-                             capture_output=True, timeout=2)
-                time.sleep(0.5)
-                print("  Chrome focused using wmctrl")
-                return True
-            except:
-                # Fallback to xdotool
-                try:
-                    subprocess.run(["xdotool", "search", "--name", "Chrome", 
-                                  "windowactivate"], 
-                                 capture_output=True, timeout=2)
-                    time.sleep(0.5)
-                    print("  Chrome focused using xdotool")
-                    return True
-                except:
-                    print("  Install wmctrl or xdotool for better window focusing")
-        
         # Fallback: Simple click method
         print("  Using fallback click method...")
         print("  Please ensure Chrome window is visible on screen")
@@ -289,13 +259,21 @@ def run_automation():
         # Focus Chrome with better reliability
         print("Switching to Chrome...")
         focus_chrome_window()
-        time.sleep(0.5)  # Extra delay to ensure Chrome is ready
+        time.sleep(0.2)  # Extra delay to ensure Chrome is ready
         
         # Enter initial fields with delays
         print("Entering initial fields...")
-        fields = [
+        initialFields = [
             (110, 416, "Tim Hayes", False),
             (110, 495, "tlh2000@hw.ac.uk", False),
+        ]
+
+        for i, (x, y, text, enter) in enumerate(initialFields):
+            print(f"  Field {i+1}/{len(initialFields)}: {text[:20]}...")
+            type_at(x, y, text, press_enter=enter)
+            time.sleep(0.2)  # Additional delay between fields
+        
+        fields = [
             (110, 692, "Edinburgh", True),
             (110, 785, building_name, True),
             (110, 880, floor_level, True),
@@ -305,14 +283,14 @@ def run_automation():
         for i, (x, y, text, enter) in enumerate(fields):
             print(f"  Field {i+1}/{len(fields)}: {text[:20]}...")
             type_at(x, y, text, press_enter=enter)
-            time.sleep(2.5)  # Additional delay between fields
+            time.sleep(2.75)  # Additional delay between fields
         
         # Wait for all fields to be entered before page down
         print("Waiting before Page Down...")
-        time.sleep(1.5)
+        time.sleep(0.25)
         print("Pressing Page Down (after room entry)...")
         pyautogui.press('pagedown')
-        time.sleep(2)
+        time.sleep(0.25)
         
         # Continue with remaining fields
         print("Entering remaining fields...")
@@ -325,7 +303,7 @@ def run_automation():
         for i, (x, y, text, enter) in enumerate(remaining_fields):
             print(f"  Field {i+1}/{len(remaining_fields)}: {text[:30]}...")
             type_at(x, y, text, press_enter=enter)
-            time.sleep(2.8)
+            time.sleep(1.25)
         
         # Paste the template after the date field
         print("Pasting template...")
@@ -335,20 +313,20 @@ HWU ID: {sid.strip()}
 Granted access by: RLW Tim & RLW Ovye
 Granted access at: {current_time}"""
         
-        time.sleep(0.3)
+        time.sleep(0.2)
         pyautogui.moveTo(*DESC, duration=0.2)
         time.sleep(0.2)
         pyautogui.click()
         time.sleep(0.3)
         pyautogui.write(template, interval=0.005)
-        time.sleep(2)
+        time.sleep(0.75)
         
         # Wait before page down
         print("Waiting before Page Down...")
-        time.sleep(1.5)
+        time.sleep(0.25)
         print("Pressing Page Down (after description)...")
         pyautogui.press('pagedown')
-        time.sleep(2)
+        time.sleep(0.25)
         
         # Final field
         print("Entering final field...")
