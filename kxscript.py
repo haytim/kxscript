@@ -17,7 +17,7 @@ FIRST = (283, 286)
 LAST = (430, 286)
 ID = (297, 238)
 ROOM = (256, 582)
-DESC = (100, 900)
+DESC = (110, 800)
 
 BUILDING_NAMES = {
     'HH': 'Lord Home',
@@ -144,12 +144,23 @@ def copy_field(pos, triple=False):
     return pyperclip.paste()
 
 def type_at(x, y, text, press_enter=False):
+    """Type text at specific coordinates with 1-second delay before spaces"""
     pyautogui.moveTo(x, y, duration=0.2)
     time.sleep(0.2)
     pyautogui.click()
     time.sleep(0.3)
-    pyautogui.write(text, interval=0.02)
+    
+    # Type character by character with special handling for spaces
+    for char in text:
+        if char == ' ':
+            time.sleep(1.0)  # 1 second delay before space
+            pyautogui.press('space')
+            time.sleep(0.1)  # Small delay after space
+        else:
+            pyautogui.write(char, interval=0.02)
+    
     time.sleep(1)
+    
     if press_enter:
         pyautogui.press('enter')
         time.sleep(0.3)
@@ -294,7 +305,7 @@ def run_automation():
         for i, (x, y, text, enter) in enumerate(fields):
             print(f"  Field {i+1}/{len(fields)}: {text[:20]}...")
             type_at(x, y, text, press_enter=enter)
-            time.sleep(1.5)  # Additional delay between fields
+            time.sleep(2.5)  # Additional delay between fields
         
         # Wait for all fields to be entered before page down
         print("Waiting before Page Down...")
