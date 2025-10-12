@@ -191,7 +191,7 @@ def focus_chrome_window():
                     '''
                     subprocess.run(["powershell", "-Command", powershell_cmd], 
                                  capture_output=True, timeout=2)
-                    time.sleep(0.5)
+                    time.sleep(0.2)
                     print(f"  Attempted to focus using AppActivate('{chrome_name}')")
                 except:
                     continue
@@ -218,7 +218,7 @@ def focus_chrome_window():
                 '''
                 subprocess.run(["powershell", "-Command", powershell_cmd], 
                              capture_output=True, timeout=3)
-                time.sleep(0.8)
+                time.sleep(0.2)
                 print("  Chrome window focused successfully")
                 return True
             except Exception as e:
@@ -292,21 +292,29 @@ def run_automation():
         fields = [
             (110, 692, "Edinburgh", True),
             (110, 785, building_name, True),
-            (110, 880, floor_level, True),
-            (110, 970, room.strip(), False),
         ]
         
         for i, (x, y, text, enter) in enumerate(fields):
             print(f"  Field {i+1}/{len(fields)}: {text[:20]}...")
             type_at(x, y, text, press_enter=enter)
             time.sleep(3)  # Additional delay between fields
+
+        fields2 = [
+            (110, 880, floor_level, True),
+            (110, 970, room.strip(), False),
+        ]
+
+        for i, (x, y, text, enter) in enumerate(fields2):
+            print(f"  Field {i+1}/{len(fields2)}: {text[:20]}...")
+            type_at(x, y, text, press_enter=enter)
+            time.sleep(0.2)  # Additional delay between fields
         
         # Wait for all fields to be entered before page down
         print("Waiting before Page Down...")
-        time.sleep(0.25)
+        time.sleep(0.05)
         print("Pressing Page Down (after room entry)...")
         pyautogui.press('pagedown')
-        time.sleep(0.25)
+        time.sleep(0.15)
         
         # Continue with remaining fields
         print("Entering remaining fields...")
@@ -319,7 +327,7 @@ def run_automation():
         for i, (x, y, text, enter) in enumerate(remaining_fields):
             print(f"  Field {i+1}/{len(remaining_fields)}: {text[:30]}...")
             type_at(x, y, text, press_enter=enter)
-            time.sleep(1.25)
+            time.sleep(0.75)
         
         # Paste the template after the date field
         print("Pasting template...")
@@ -329,25 +337,25 @@ HWU ID: {sid.strip()}
 Granted access by: RLW Tim & RLW Ovye
 Granted access at: {current_time_str}"""
         
-        time.sleep(0.2)
+        time.sleep(0.1)
         pyautogui.moveTo(*DESC, duration=0.2)
-        time.sleep(0.2)
+        time.sleep(0.1)
         pyautogui.click()
-        time.sleep(0.3)
+        time.sleep(0.1)
         pyautogui.write(template, interval=0.005)
         time.sleep(0.75)
         
         # Wait before page down
         print("Waiting before Page Down...")
-        time.sleep(0.25)
+        time.sleep(0.05)
         print("Pressing Page Down (after description)...")
         pyautogui.press('pagedown')
-        time.sleep(0.25)
+        time.sleep(0.15)
         
         # Final field
         print("Entering final field...")
         type_at(110, 665, "No", press_enter=True)
-        time.sleep(0.3)
+        time.sleep(0.1)
         
         print("Automation completed successfully!")
         print("Waiting 3 seconds before accepting new runs...")
