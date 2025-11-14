@@ -47,7 +47,7 @@ def parse_room_info(room_number):
         if building_code in BUILDING_NAMES:
             building_name = BUILDING_NAMES[building_code]
             if floor_char == 'G':
-                floor_level = 'Ground'
+                floor_level = 'G'
             else:
                 floor_level = floor_char
             return building_name, floor_level
@@ -62,7 +62,7 @@ def parse_room_info(room_number):
         
         if building_code == 'MF':
             if 1 <= flat_num <= 7:
-                floor_level = 'Ground'
+                floor_level = 'G'
             elif 8 <= flat_num <= 14:
                 floor_level = '1'
             elif 15 <= flat_num <= 21:
@@ -73,7 +73,7 @@ def parse_room_info(room_number):
                 floor_level = '4'
         elif building_code == 'MS':
             if 1 <= flat_num <= 8:
-                floor_level = 'Ground'
+                floor_level = 'G'
             elif 9 <= flat_num <= 16:
                 floor_level = '1'
             elif 17 <= flat_num <= 24:
@@ -84,7 +84,7 @@ def parse_room_info(room_number):
                 floor_level = '4'
         elif building_code == 'AM':
             if 1 <= flat_num <= 5:
-                floor_level = 'Ground'
+                floor_level = 'G'
             elif 6 <= flat_num <= 11:
                 floor_level = '1'
             elif 12 <= flat_num <= 16:
@@ -104,7 +104,7 @@ def parse_room_info(room_number):
         building_name = BUILDING_NAMES['LHH']
         
         if floor_digit == 1:
-            floor_level = 'Ground'
+            floor_level = 'G'
         elif floor_digit == 2:
             floor_level = '1'
         elif floor_digit == 3:
@@ -125,9 +125,7 @@ def parse_room_info(room_number):
         building_name = BUILDING_NAMES[building_code]
         
         if floor_char == 'G' or floor_char == 'LG':
-            floor_level = 'Ground'
-        elif floor_char == 'B':
-            floor_level = 'Basement'
+            floor_level = 'G'
         else:
             floor_level = floor_char
         
@@ -205,7 +203,7 @@ def focus_chrome_window():
                     using System.Runtime.InteropServices;
                     public class Win {
                         [DllImport("user32.dll")]
-                        public static extern bool SetForegroundWindow(IntPtr hWnd);
+                        public static extern bool SetForeGWindow(IntPtr hWnd);
                         [DllImport("user32.dll")]
                         public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
                     }
@@ -213,7 +211,7 @@ def focus_chrome_window():
                 $chrome = Get-Process | Where-Object {$_.ProcessName -like "*chrome*"} | Select-Object -First 1
                 if ($chrome) {
                     $handle = $chrome.MainWindowHandle
-                    [Win]::SetForegroundWindow($handle)
+                    [Win]::SetForeGWindow($handle)
                 }
                 '''
                 subprocess.run(["powershell", "-Command", powershell_cmd], 
