@@ -133,11 +133,23 @@ def parse_room_info(room_number):
     
     return "Unknown Building", "Unknown Floor"
 
-def copy_field(pos, triple=False):
+def copy_field_with_select_all(pos):
+    """Copy field using click, Ctrl+A, Ctrl+C"""
     pyautogui.moveTo(*pos, duration=0.1)
     time.sleep(0.1)
-    clicks = 3 if triple else 2
-    pyautogui.click(clicks=clicks)
+    pyautogui.click()
+    time.sleep(0.1)
+    pyautogui.hotkey('ctrl', 'a')
+    time.sleep(0.1)
+    pyautogui.hotkey('ctrl', 'c')
+    time.sleep(0.1)
+    return pyperclip.paste()
+
+def copy_field_with_double_click(pos):
+    """Copy field using double click, Ctrl+C"""
+    pyautogui.moveTo(*pos, duration=0.1)
+    time.sleep(0.1)
+    pyautogui.click(clicks=2)
     time.sleep(0.1)
     pyautogui.hotkey('ctrl', 'c')
     time.sleep(0.1)
@@ -167,6 +179,80 @@ def type_at(x, y, text, press_enter=False):
     if press_enter:
         pyautogui.press('enter')
         time.sleep(0.2)
+
+def select_edinburgh():
+    """Select Edinburgh from location dropdown"""
+    print("  Selecting Edinburgh...")
+    pyautogui.moveTo(200, 682, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)  # Wait for list to load
+    pyautogui.moveTo(280, 583, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)  # Wait for confirmation
+
+def select_building(building_name):
+    """Select building from dropdown with search"""
+    print(f"  Selecting building: {building_name}...")
+    pyautogui.moveTo(200, 760, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)
+    pyautogui.moveTo(300, 405, duration=0.1)
+    pyautogui.click()
+    time.sleep(0.1)
+    pyautogui.write(building_name, interval=0.005)
+    time.sleep(0.5)
+    pyautogui.press('enter')
+    time.sleep(1.5)
+    pyautogui.moveTo(280, 758, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)
+
+def select_floor_level(floor_level):
+    """Select floor level from dropdown with search"""
+    print(f"  Selecting floor level: {floor_level}...")
+    pyautogui.moveTo(200, 840, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)
+    pyautogui.moveTo(300, 580, duration=0.1)
+    pyautogui.click()
+    time.sleep(0.1)
+    pyautogui.write(floor_level, interval=0.005)
+    time.sleep(0.5)
+    pyautogui.press('enter')
+    time.sleep(1.5)  # Wait for loading
+    pyautogui.moveTo(280, 842, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)
+
+def select_campus_residences():
+    """Select Edinburgh Campus - Residences"""
+    print("  Selecting Edinburgh Campus - Residences...")
+    pyautogui.moveTo(200, 363, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)
+    pyautogui.moveTo(280, 483, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)
+
+def select_access_support():
+    """Select Access - Supporting Student Residents"""
+    print("  Selecting Access - Supporting Student Residents...")
+    pyautogui.moveTo(205, 523, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)
+    pyautogui.moveTo(280, 480, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)
+
+def select_final_field():
+    """Select final field (No)"""
+    print("  Selecting final field...")
+    pyautogui.moveTo(205, 1025, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)
+    pyautogui.moveTo(280, 980, duration=0.1)
+    pyautogui.click()
+    time.sleep(1.5)
 
 def focus_chrome_window():
     """
@@ -258,10 +344,10 @@ def run_automation():
     try:
         # Copy fields from source
         print("Copying fields...")
-        first = copy_field(FIRST)
-        last = copy_field(LAST)
-        sid = copy_field(ID)
-        room = copy_field(ROOM)
+        first = copy_field_with_select_all(FIRST)
+        last = copy_field_with_select_all(LAST)
+        sid = copy_field_with_select_all(ID)
+        room = copy_field_with_double_click(ROOM)
         
         # Parse room information
         building_name, floor_level = parse_room_info(room)
@@ -287,47 +373,48 @@ def run_automation():
             type_at(x, y, text, press_enter=enter)
             time.sleep(0.2)  # Additional delay between fields
         
-        fields = [
-            (110, 692, "Edinburgh", True),
-            (110, 785, building_name, True),
-        ]
+        # Select Edinburgh (new checkbox-style UI)
+        print("Selecting location fields...")
+        select_edinburgh()
+        time.sleep(0.2)
         
-        for i, (x, y, text, enter) in enumerate(fields):
-            print(f"  Field {i+1}/{len(fields)}: {text[:20]}...")
-            type_at(x, y, text, press_enter=enter)
-            time.sleep(3)  # Additional delay between fields
-
-        fields2 = [
-            (110, 880, floor_level, True),
-            (110, 970, room.strip(), False),
-        ]
-
-        for i, (x, y, text, enter) in enumerate(fields2):
-            print(f"  Field {i+1}/{len(fields2)}: {text[:20]}...")
-            type_at(x, y, text, press_enter=enter)
-            time.sleep(0.2)  # Additional delay between fields
+        # Select building (new checkbox-style UI with search)
+        select_building(building_name)
+        time.sleep(0.2)
         
-        # Wait for all fields to be entered before page down
-        print("Waiting before Page Down...")
-        time.sleep(0.05)
-        print("Pressing Page Down (after room entry)...")
+        # Select floor level (new checkbox-style UI with search)
+        select_floor_level(floor_level)
+        time.sleep(0.2)
+        
+        # Enter room number
+        print("Entering room number...")
+        type_at(110, 920, room.strip(), press_enter=False)
+        time.sleep(0.2)
+        
+        # Page down to next section
+        print("Pressing Page Down...")
         pyautogui.press('pagedown')
         time.sleep(0.15)
         
-        # Continue with remaining fields
-        print("Entering remaining fields...")
-        remaining_fields = [
-            (110, 415, "Edinburgh Campus - Residences", True),
-            (110, 605, "Access - Supporting Student Residents", True),
-            (110, 705, current_datetime, False),
-        ]
+        # Select campus residences (new checkbox-style UI)
+        print("Selecting campus and access fields...")
+        select_campus_residences()
+        time.sleep(0.2)
         
-        for i, (x, y, text, enter) in enumerate(remaining_fields):
-            print(f"  Field {i+1}/{len(remaining_fields)}: {text[:30]}...")
-            type_at(x, y, text, press_enter=enter)
-            time.sleep(0.75)
+        # Select access support (new checkbox-style UI)
+        select_access_support()
+        time.sleep(0.2)
         
-        # Paste the template after the date field
+        # Enter date
+        print("Entering date...")
+        pyautogui.moveTo(120, 620, duration=0.1)
+        time.sleep(0.1)
+        pyautogui.click()
+        time.sleep(0.1)
+        pyautogui.write(current_datetime, interval=0.005)
+        time.sleep(0.2)
+        
+        # Paste the template
         print("Pasting template...")
         template = f"""Student's full name: {first.strip()} {last.strip()}
 Room: {room.strip()}
@@ -335,25 +422,17 @@ HWU ID: {sid.strip()}
 Granted access by: RLW Tim & RLW Ovye
 Granted access at: {current_time_str}"""
         
-        time.sleep(0.1)
-        pyautogui.moveTo(*DESC, duration=0.2)
+        pyautogui.moveTo(120, 720, duration=0.1)
         time.sleep(0.1)
         pyautogui.click()
         time.sleep(0.1)
         pyautogui.write(template, interval=0.005)
-        time.sleep(0.75)
+        time.sleep(0.2)
         
-        # Wait before page down
-        print("Waiting before Page Down...")
-        time.sleep(0.05)
-        print("Pressing Page Down (after description)...")
-        pyautogui.press('pagedown')
-        time.sleep(0.15)
-        
-        # Final field
-        print("Entering final field...")
-        type_at(110, 665, "No", press_enter=True)
-        time.sleep(0.1)
+        # Select final field (No)
+        print("Selecting final field...")
+        select_final_field()
+        time.sleep(0.2)
         
         print("Automation completed successfully!")
         print("Waiting 3 seconds before accepting new runs...")
