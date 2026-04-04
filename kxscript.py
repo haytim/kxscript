@@ -287,72 +287,91 @@ def run_automation():
             type_at(x, y, text, press_enter=enter)
             time.sleep(0.2)  # Additional delay between fields
         
-        fields = [
-            (110, 692, "Edinburgh", True),
-            (110, 785, building_name, True),
-        ]
-        
-        for i, (x, y, text, enter) in enumerate(fields):
-            print(f"  Field {i+1}/{len(fields)}: {text[:20]}...")
-            type_at(x, y, text, press_enter=enter)
-            time.sleep(3)  # Additional delay between fields
+        # Select Edinburgh from checkbox-style location list
+        print("Selecting Edinburgh...")
+        pyautogui.click(200, 682)
+        time.sleep(0.2)
+        pyautogui.click(280, 583)
+        time.sleep(0.2)
 
-        fields2 = [
-            (110, 880, floor_level, True),
-            (110, 970, room.strip(), False),
-        ]
+        # Select building name via search box
+        print(f"Selecting building: {building_name}...")
+        pyautogui.click(200, 760)
+        time.sleep(0.1)
+        pyautogui.click(300, 405)
+        time.sleep(0.1)
+        pyperclip.copy(building_name)
+        pyautogui.hotkey('ctrl', 'v')
+        pyautogui.press('enter')
+        time.sleep(0.1)
+        pyautogui.click(280, 758)
+        time.sleep(0.1)
 
-        for i, (x, y, text, enter) in enumerate(fields2):
-            print(f"  Field {i+1}/{len(fields2)}: {text[:20]}...")
-            type_at(x, y, text, press_enter=enter)
-            time.sleep(0.2)  # Additional delay between fields
-        
+        # Select floor level via search box
+        print(f"Selecting floor level: {floor_level}...")
+        pyautogui.click(200, 840)
+        time.sleep(0.1)
+        pyautogui.click(300, 580)
+        time.sleep(0.1)
+        pyperclip.copy(floor_level)
+        pyautogui.hotkey('ctrl', 'v')
+        time.sleep(0.2)
+        pyautogui.click(280, 842)
+        time.sleep(0.1)
+
+        # Enter room number
+        print("Entering room number...")
+        type_at(110, 920, room.strip(), False)
+        time.sleep(0.2)
+
         # Wait for all fields to be entered before page down
         print("Waiting before Page Down...")
         time.sleep(0.05)
         print("Pressing Page Down (after room entry)...")
         pyautogui.press('pagedown')
         time.sleep(0.15)
-        
-        # Continue with remaining fields
-        print("Entering remaining fields...")
-        remaining_fields = [
-            (110, 415, "Edinburgh Campus - Residences", True),
-            (110, 605, "Access - Supporting Student Residents", True),
-            (110, 705, current_datetime, False),
-        ]
-        
-        for i, (x, y, text, enter) in enumerate(remaining_fields):
-            print(f"  Field {i+1}/{len(remaining_fields)}: {text[:30]}...")
-            type_at(x, y, text, press_enter=enter)
-            time.sleep(0.75)
-        
-        # Paste the template after the date field
+
+        # Select Edinburgh Campus - Residences from checkbox-style list
+        print("Selecting Edinburgh Campus - Residences...")
+        pyautogui.click(200, 363)
+        time.sleep(0.1)
+        pyautogui.click(280, 483)
+        time.sleep(0.1)
+
+        # Select Access - Supporting Student Residents from checkbox-style list
+        print("Selecting Access - Supporting Student Residents...")
+        pyautogui.click(205, 523)
+        time.sleep(0.1)
+        pyautogui.click(280, 480)
+        time.sleep(0.1)
+
+        # Paste date
+        print("Pasting date...")
+        pyperclip.copy(current_datetime)
+        pyautogui.click(120, 620)
+        time.sleep(0.1)
+        pyautogui.hotkey('ctrl', 'v')
+        time.sleep(0.75)
+
+        # Paste the template
         print("Pasting template...")
         template = f"""Student's full name: {first.strip()} {last.strip()}
 Room: {room.strip()}
 HWU ID: {sid.strip()}
 Granted access by: RLW Tim & RLW Ovye
 Granted access at: {current_time_str}"""
-        
+
+        pyperclip.copy(template)
+        pyautogui.click(120, 720)
         time.sleep(0.1)
-        pyautogui.moveTo(*DESC, duration=0.2)
-        time.sleep(0.1)
-        pyautogui.click()
-        time.sleep(0.1)
-        pyautogui.write(template, interval=0.005)
+        pyautogui.hotkey('ctrl', 'v')
         time.sleep(0.75)
-        
-        # Wait before page down
-        print("Waiting before Page Down...")
-        time.sleep(0.05)
-        print("Pressing Page Down (after description)...")
-        pyautogui.press('pagedown')
-        time.sleep(0.15)
-        
-        # Final field
-        print("Entering final field...")
-        type_at(110, 665, "No", press_enter=True)
+
+        # Final field via checkbox-style list
+        print("Selecting final field...")
+        pyautogui.click(205, 1012)
+        time.sleep(0.2)
+        pyautogui.click(280, 958)
         time.sleep(0.1)
         
         print("Automation completed successfully!")
