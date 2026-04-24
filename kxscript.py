@@ -224,6 +224,8 @@ def select_floor_level(floor_level, building_name):
     # Determine the correct search box Y-coordinate for this building by
     # reverse-looking up the building code from the full building name.
     building_code = next((code for code, name in BUILDING_NAMES.items() if name == building_name), None)
+    if building_code not in BUILDING_FLOOR_SEARCH_Y:
+        print(f"  WARNING: building '{building_name}' not found in BUILDING_FLOOR_SEARCH_Y, defaulting to y=580")
     search_y = BUILDING_FLOOR_SEARCH_Y.get(building_code, 580)
     pyautogui.moveTo(200, 840, duration=0.1)
     pyautogui.click()
