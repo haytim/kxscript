@@ -35,6 +35,17 @@ BUILDING_NAMES = {
     'CMW': 'Christina Miller West',
 }
 
+# Search box Y-coordinate for the floor level dropdown, keyed by building code.
+# The dropdown dynamically sizes based on the number of floors in the building.
+# 5 floors (1, 2, 3, 4, G): AM, MF, MS, CMW, CME -> search bar at y=580
+# 4 floors (1, 2, 3, G):    HH, RBH              -> search bar at y=630
+# 3 floors (1, 2, G):       TH, RSH, GBH, LHH   -> search bar at y=680
+BUILDING_FLOOR_SEARCH_Y = {
+    'AM': 580, 'MF': 580, 'MS': 580, 'CMW': 580, 'CME': 580,
+    'HH': 630, 'RBH': 630,
+    'TH': 680, 'RSH': 680, 'GBH': 680, 'LHH': 680,
+}
+
 def parse_room_info(room_number):
     room_number = room_number.strip()
     
@@ -207,13 +218,17 @@ def select_building(building_name):
     pyautogui.click()
     time.sleep(1.5)
 
-def select_floor_level(floor_level):
+def select_floor_level(floor_level, building_name):
     """Select floor level from dropdown with search"""
     print(f"  Selecting floor level: {floor_level}...")
+    # Determine the correct search box Y-coordinate for this building by
+    # reverse-looking up the building code from the full building name.
+    building_code = next((code for code, name in BUILDING_NAMES.items() if name == building_name), None)
+    search_y = BUILDING_FLOOR_SEARCH_Y.get(building_code, 580)
     pyautogui.moveTo(200, 840, duration=0.1)
     pyautogui.click()
     time.sleep(1.5)
-    pyautogui.moveTo(300, 580, duration=0.1)
+    pyautogui.moveTo(300, search_y, duration=0.1)
     pyautogui.click()
     time.sleep(0.1)
     pyautogui.write(floor_level, interval=0.005)
@@ -383,7 +398,7 @@ def run_automation():
         time.sleep(0.2)
         
         # Select floor level (new checkbox-style UI with search)
-        select_floor_level(floor_level)
+        select_floor_level(floor_level, building_name)
         time.sleep(0.2)
         
         # Enter room number
