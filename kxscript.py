@@ -27,7 +27,7 @@ BUILDING_NAMES = {
     'TH': 'Lord Thompson',
     'GBH': 'George Burnett',
     'RSH': 'Robin Smith',
-    'AM': 'Anna Macleod',
+    'AM': 'Anna McLeod',
     'MS': 'Muriel Spark',
     'MF': 'Mary Fergusson',
     'LHH': 'Leonard Horner',
